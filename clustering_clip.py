@@ -1,15 +1,17 @@
-import torch
 import argparse
-import os, sys
 import json
-from tqdm import tqdm
-from clustering.utils import dataset_reader_image_multi, get_device, multimodal_batchify
-from clustering.kmeans import get_kmeans
-from transformers import CLIPTokenizer, CLIPTextModel
-from transformers import CLIPProcessor, CLIPVisionModel
+import os
+import sys
+
 import numpy as np
+import torch
 from easydict import EasyDict as edict
-from utils.load_data import get_data_from_json, clip_batchify
+from tqdm import tqdm
+from transformers import (CLIPProcessor, CLIPTextModel, CLIPTokenizer,
+                          CLIPVisionModel)
+
+from clustering.kmeans import get_kmeans
+from utils.load_data import clip_batchify, get_data_from_json
 
 
 def get_args():
@@ -17,7 +19,7 @@ def get_args():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("-m", "--model", default="openai/clip-vit-base-patch32")
     parser.add_argument("-d", "--data_json_path", default="./data.json")
-    parser.add_argument("-t", "--task", choices=['conll2003', "bc5cdr", "wnut2017", "mitmovie"])
+    parser.add_argument("-t", "--task", choices=['conll2003', "bc5cdr", "wnut2017", "mitmovie"], required=True)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--kmeans_states", nargs='+', type=int, default=[0, 1, 2, 3, 4])
 
@@ -29,12 +31,6 @@ def get_confusion_mean(confusions):
     acc_mean = sum([c.acc() for c in confusions]) / len(confusions)
     nmi_mean = sum([c.clusterscores()['NMI'] for c in confusions]) / len(confusions)
     return acc_mean, nmi_mean
-
-
-def get_confusion_std(confusions):
-    acc_std = np.std([c.acc() for c in confusions])
-    nmi_std = np.std([c.clusterscores()['NMI'] for c in confusions])
-    return acc_std, nmi_std
 
 
 def get_features(
@@ -65,7 +61,7 @@ def get_features(
             image_inputs = image_processor(images=image_batch,
                                 return_tensors="pt").to(config.device)
             image_outputs = image_encoder(**image_inputs)
-            
+
             for text_feat in ['', 'pooler']:
                 for image_feat in ['', 'pooler']:
                     if text_feat == '' and image_feat == '':
@@ -98,18 +94,15 @@ def run_kmeans(all_features, kmeans_states, num_classes):
         for image_feat in ['', 'pooler']:
             if text_feat == '' and image_feat == '':
                 continue
-            tqdm.write(f'[Text - {text_feat}][Image - {image_feat}]')
             features = all_features[f'{text_feat}-{image_feat}'].clone()
             labels = all_features['labels'].clone()
 
-            all_confusion_l2 = []
-            for ks in tqdm(kmeans_states):
-                confusion_l2 = get_kmeans(features, labels, num_classes, ks, return_confusion=True)
-                all_confusion_l2.append(confusion_l2)
-            l2_result = get_confusion_mean(all_confusion_l2)
-            l2_std = get_confusion_std(all_confusion_l2)
-            results[f'{text_feat}-{image_feat}-acc'] = l2_result
-            results[f'{text_feat}-{image_feat}-std'] = l2_std
+            confusions = [
+                get_kmeans(features, labels, num_classes, ks)
+                for ks in kmeans_states
+            ]
+            results[f'{text_feat}-{image_feat}-acc'] = get_confusion_mean(confusions)
+
     return results
 
 
@@ -130,7 +123,6 @@ def main(args):
     image_encoder.to(device)
     image_encoder.eval()
 
-    # get label dictionary
     if task == 'conll2003':
         label_dict = {'PER':0, 'LOC':1, 'ORG':2}
     elif task == 'bc5cdr':
@@ -144,17 +136,15 @@ def main(args):
         raise NotImplementedError
     num_classes = len(label_dict)
 
-    # load data
     data = get_data_from_json(data_json_path, label_dict)
     
-    # get features
     config = edict({'batch_size': batch_size, 'device': device, 'max_length': 77})
     all_features = get_features(data, text_encoder, text_tokenizer,
                         image_encoder, image_processor, config)
     results = run_kmeans(all_features, kmeans_states, num_classes)
     
     print(results)
-    
+
 
 if __name__ == '__main__':
     args = get_args()

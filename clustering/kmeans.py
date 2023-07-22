@@ -1,16 +1,16 @@
-import torch
-from clustering.confusion import Confusion
-from sklearn.cluster import KMeans
 import numpy as np
-from sklearn.metrics import silhouette_score
+import torch
 from sklearn import preprocessing
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+from clustering.confusion import Confusion
 
 
-def get_kmeans(all_features, all_labels, num_classes, random_state=None, return_confusion=False):
+def get_kmeans(all_features, all_labels, num_classes, random_state=None):
 
     all_features = all_features.numpy()
     all_features = preprocessing.normalize(all_features)
-    print('Clustering with kmeans...')
     
     confusion = Confusion(num_classes)
     clustering_model = KMeans(n_clusters=num_classes, random_state=random_state)

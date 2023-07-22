@@ -1,9 +1,9 @@
-import os
+import csv
 import json
+import os
 import random
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-import csv
 
 import torch
 from diffusers import EulerDiscreteScheduler, StableDiffusionPipeline
@@ -56,7 +56,7 @@ def main(args):
     
     data = {}
     for idx, prompt_json in tqdm(enumerate(prompt_jsons), desc="Generate images"):
-        prompt = prompt_json["sentence"]
+        prompt = ' '.join(prompt_json["sentence"][:-1]) + '.'
         ner = prompt_json["ner"]
         start, end, label = ner
         image_path = f"{args.output_image_dir}/{idx}.png"
@@ -65,14 +65,14 @@ def main(args):
             generate_valid_image(pipe, num_inference_steps, prompt, image_path, args.seed)
 
         data[idx] = {
-            "sentence": prompt,
+            "sentence": prompt_json["sentence"],
             "start": start,
             "end": end,
             "label": label,
             "image_path": image_path
         }
     
-    with open(args.data_json, 'w+') as f:    
+    with open(args.data_json_path, 'w+') as f:    
         json.dump(data, f, indent=4)
 
 
@@ -104,7 +104,7 @@ def parse_args():
         "--seed",
         type=int,
         help="random seed",
-        default=0
+        default=48763
     )
     parser.add_argument(
         "-d",
@@ -120,15 +120,9 @@ def parse_args():
         default=50
     )
     parser.add_argument(
-        "--data_json",
+        "--data_json_path",
         type=Path,
         default="./data.json"
-    )
-    parser.add_argument(
-        "-t",
-        "--task",
-        type=str,
-        required=True
     )
     
     args = parser.parse_args()

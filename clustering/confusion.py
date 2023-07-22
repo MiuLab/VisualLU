@@ -1,6 +1,8 @@
 import torch
-from sklearn.metrics.cluster import normalized_mutual_info_score, adjusted_rand_score, adjusted_mutual_info_score
 from scipy.optimize import linear_sum_assignment as hungarian
+from sklearn.metrics.cluster import (adjusted_mutual_info_score,
+                                     adjusted_rand_score,
+                                     normalized_mutual_info_score)
 
 
 class Confusion(object):

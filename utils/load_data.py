@@ -1,43 +1,50 @@
-import csv
-import json
-from PIL import Image
-from nltk import WordNetLemmatizer
 import copy
-from utils.get_label_set import get_label_set
+import json
+
+from PIL import Image
+from tqdm import tqdm
 
 
 def get_data_from_json(json_path, label_dict, max_length=77):
-    lemmatizer =  WordNetLemmatizer()
     print(f'Read data from {json_path}')
 
     with open(json_path, 'r') as f:
         data_jsons = json.load(f)
         
-    data = []
+    data_lines = []
     for i in range(len(data_jsons)):
-        data_json = data_jsons[i]
+        data_json = data_jsons[f'{i}']
         sentence = data_json['sentence']
         start = data_json['start']
         end = data_json['end']
         label = data_json['label']
         image_path = data_json['image_path']
-        data.append([sentence, (start, end), label, image_path])
+        
+        data_lines.append([sentence, (start, end), label, image_path])
     
-    for line in data:
-        sentence, (start, end), label, image_path = line
+    
+    data = []
+    for i, line in tqdm(enumerate(data_lines)):
+        try:
+            sentence, (start, end), label, image_path = line
+        except:
+            print(i, line)
+
         if label not in label_dict:
             continue
         
-        if len(sentence) > max_length:
-            prompt = ' '.join(sentence[:max_length])
+        if len(sentence) >= max_length:
+            prompt = ' '.join(sentence[:max_length - 1]) + '.'
         else:
-            prompt = ' '.join(sentence[:-1]) + '.'
+            prompt = sentence
         image = Image.open(image_path)
+        
         data.append({
             'text': prompt,
-            'label': label,
+            'label': label_dict[label],
             'image': copy.deepcopy(image)
         })
+
         image.close()
 
     return data
