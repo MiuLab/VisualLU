@@ -6,7 +6,7 @@
 * `pip install -r requirements.txt`
 
 ## Data
-Please refer to [here](https://drive.google.com/drive/folders/14pvnY02bVgr_X_rCRbxv1oU_eW9AY7jx?usp=drive_link).
+Please refer to [here](https://drive.google.com/drive/folders/14pvnY02bVgr_X_rCRbxv1oU_eW9AY7jx?usp=drive_link).\
 **Note:** the data is extracted from https://github.com/JiachengLi1995/UCTopic#datasets.
 
 ## Run
